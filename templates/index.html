@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FishingMail{% if selected %} — {{ selected['subject'] }}{% endif %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <!-- ═══════════════════════════ HEADER ═══════════════════════════════════ -->
+  <header id="app-header">
+    <div id="header-left">
+      <div id="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        FishingMail
+      </div>
+      <div id="search-box">
+        <input type="text" id="search-input" placeholder="Search mail…" autocomplete="off" />
+      </div>
+    </div>
+    <div id="header-right">
+      <span id="recipient-badge" title="{{ recipient }}">{{ recipient.split('@')[0][:2].upper() }}</span>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════ SIDEBAR ═══════════════════════════════════ -->
+  <nav id="sidebar">
+    <button class="compose-btn" id="compose-btn">+ Compose</button>
+    <ul id="nav-list">
+      <li class="nav-item nav-active" data-folder="inbox">
+        <svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+        Inbox
+        {% if unread > 0 %}<span class="badge" id="unread-badge">{{ unread }}</span>{% endif %}
+      </li>
+      <li class="nav-item" data-folder="sent">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Sent
+      </li>
+      <li class="nav-item" data-folder="drafts">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Drafts
+      </li>
+      <li class="nav-item" data-folder="spam">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        Spam
+      </li>
+      <li class="nav-item" data-folder="trash">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Trash
+      </li>
+    </ul>
+    <div id="storage-bar">
+      <div id="storage-fill" style="width: {{ [15 + (emails|length * 3), 85]|min }}%"></div>
+    </div>
+    <div id="storage-label">{{ [emails|length * 12, 1024]|min }} MB of 15 GB used</div>
+  </nav>
+
+  <!-- ══════════════════════════ MAIN CONTENT ═══════════════════════════════ -->
+  <main id="main">
+
+    <!-- ─── Email list pane ──────────────────────────────────────────────── -->
+    <section id="email-list-pane">
+      <div id="list-toolbar">
+        <input type="checkbox" id="select-all-cb" title="Select all" />
+        <button class="toolbar-btn" id="refresh-btn" title="Refresh">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        </button>
+        <span id="list-label">Inbox</span>
+        <span id="email-count-label" style="margin-left:auto;color:#5f6368;font-size:13px;">
+          1–{{ emails|length }} of {{ emails|length }}
+        </span>
+      </div>
+
+      <ul id="inbox-list" role="list">
+        {% for email in emails %}
+        <li class="email-row {% if not email['is_read'] %}unread{% endif %} {% if selected and selected['id'] == email['id'] %}selected{% endif %}"
+            data-email-id="{{ email['id'] }}"
+            data-unread="{{ '1' if not email['is_read'] else '0' }}"
+            data-has-attachment="{{ '1' if email['has_attachment'] else '0' }}"
+            data-is-phishing="{{ '1' if email['is_phishing'] else '0' }}"
+            role="listitem"
+            tabindex="0">
+          <input type="checkbox" class="row-cb" data-email-id="{{ email['id'] }}" />
+          <span class="sender-col">{{ email['sender_name'][:28] }}</span>
+          <span class="subject-col">
+            {% if email['is_phishing'] %}<span class="phishing-tag">!</span>{% endif %}
+            {{ email['subject'][:60] }}
+          </span>
+          {% if email['has_attachment'] %}
+          <span class="attach-icon" title="Has attachment">
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          </span>
+          {% endif %}
+          <span class="date-col">{{ email['ts'] | datefmt }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <!-- ─── Email detail pane ────────────────────────────────────────────── -->
+    <section id="email-detail-pane">
+      {% if selected %}
+      <div id="email-detail"
+           data-email-id="{{ selected['id'] }}"
+           data-has-attachment="{{ '1' if selected['has_attachment'] else '0' }}"
+           data-is-phishing="{{ '1' if selected['is_phishing'] else '0' }}">
+
+        <div id="detail-header">
+          <h1 id="detail-subject">{{ selected['subject'] }}</h1>
+          {% if selected['is_phishing'] %}
+          <div class="phishing-banner" role="alert">
+            ⚠ This message may be suspicious. Do not click links or open attachments.
+          </div>
+          {% endif %}
+        </div>
+
+        <div id="detail-meta">
+          <div class="avatar" id="sender-avatar">
+            {{ selected['sender_name'][0].upper() }}
+          </div>
+          <div id="meta-text">
+            <div id="sender-name">{{ selected['sender_name'] }}</div>
+            <div id="sender-addr">&lt;{{ selected['sender_email'] }}&gt;</div>
+            <div id="recv-addr">to {{ selected['recipient'] }}</div>
+          </div>
+          <div id="email-time">{{ selected['ts'] | datefmt_long }}</div>
+        </div>
+
+        <div id="detail-body">{{ selected['body'] }}</div>
+
+        {% if selected['has_attachment'] %}
+        <div id="attachment-area">
+          <div id="attachment-card"
+               data-email-id="{{ selected['id'] }}"
+               data-filename="{{ selected['attach_filename'] }}">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <span class="attach-name">{{ selected['attach_filename'] }}</span>
+            <a id="download-attachment"
+               href="{{ url_for('download_attachment', email_id=selected['id']) }}"
+               download="{{ selected['attach_filename'] }}"
+               data-email-id="{{ selected['id'] }}"
+               data-filename="{{ selected['attach_filename'] }}">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download
+            </a>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Reply area -->
+        <div id="reply-area">
+          <div id="reply-toggle">
+            <button id="reply-btn" data-email-id="{{ selected['id'] }}">
+              ↩ Reply
+            </button>
+            <button id="forward-btn">⇨ Forward</button>
+          </div>
+          <form id="reply-form" class="hidden"
+                action="/compose/reply" method="POST"
+                data-email-id="{{ selected['id'] }}">
+            <input type="hidden" name="email_id" value="{{ selected['id'] }}" />
+            <div id="reply-header">
+              <span>Reply to {{ selected['sender_email'] }}</span>
+            </div>
+            <textarea id="reply-body"
+                      name="body"
+                      placeholder="Write your reply…"
+                      rows="6"></textarea>
+            <div id="reply-toolbar">
+              <button type="submit" id="reply-send">Send</button>
+              <button type="button" id="reply-discard">Discard</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {% else %}
+      <!-- Empty state -->
+      <div id="empty-state">
+        <svg viewBox="0 0 24 24" width="64" height="64" stroke="#dadce0"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <p>Select an email to read</p>
+      </div>
+      {% endif %}
+    </section>
+
+  </main>
+
+  <script src="{{ url_for('static', filename='js/mail.js') }}"></script>
+</body>
+</html>
