@@ -48,6 +48,8 @@ RECIPIENT      = os.getenv("FISHMAIL_RECIPIENT", "j.anderson@meridian-corp.local
 INTERVAL_MIN   = int(os.getenv("FISHMAIL_INTERVAL_MIN", "60"))
 INTERVAL_MAX   = int(os.getenv("FISHMAIL_INTERVAL_MAX", "180"))
 SEED_COUNT     = int(os.getenv("FISHMAIL_SEED_EMAILS", "8"))
+TLS_CERT       = os.getenv("FISHMAIL_TLS_CERT")   # path to PEM certificate
+TLS_KEY        = os.getenv("FISHMAIL_TLS_KEY")    # path to PEM private key
 
 DB_PATH = Path(__file__).parent / "fishmail.db"
 
@@ -373,5 +375,13 @@ if __name__ == "__main__":
     t = threading.Thread(target=_email_loop, daemon=True)
     t.start()
 
-    print(f"[fishmail] listening on http://{HOST}:{PORT}")
-    app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
+    ssl_context = None
+    if TLS_CERT and TLS_KEY:
+        ssl_context = (TLS_CERT, TLS_KEY)
+        print(f"[fishmail] TLS enabled  cert={TLS_CERT}  key={TLS_KEY}")
+        print(f"[fishmail] listening on https://{HOST}:{PORT}")
+    else:
+        print(f"[fishmail] listening on http://{HOST}:{PORT}")
+
+    app.run(host=HOST, port=PORT, debug=False, use_reloader=False,
+            ssl_context=ssl_context)

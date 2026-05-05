@@ -36,6 +36,33 @@ FISHMAIL_INTERVAL_MIN=30 FISHMAIL_INTERVAL_MAX=90 /FishingMail/run.sh
 
 ---
 
+## TLS / HTTPS
+
+Pass the certificate and key paths via environment variables. The server will serve HTTPS instead of HTTP when both are set; it falls back to plain HTTP if either is absent.
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `FISHMAIL_TLS_CERT` | _(unset)_ | Path to PEM certificate file |
+| `FISHMAIL_TLS_KEY` | _(unset)_ | Path to PEM private key file |
+
+```bash
+# Serve on HTTPS port 443
+FISHMAIL_TLS_CERT=/etc/fishmail/cert.pem \
+FISHMAIL_TLS_KEY=/etc/fishmail/key.pem \
+/FishingMail/run.sh 443
+```
+
+```bash
+# Or with a full chain (intermediate + leaf bundled in one file)
+FISHMAIL_TLS_CERT=/etc/fishmail/fullchain.pem \
+FISHMAIL_TLS_KEY=/etc/fishmail/privkey.pem \
+/FishingMail/run.sh 443
+```
+
+> **Note:** The server presents the certificate but does not validate the client's `Host` header against it. The connecting agent must use the hostname that matches the cert's CN/SAN and have the signing CA in its trust store.
+
+---
+
 ## Email content
 
 All content is generated from templates in **`email_generator.py`**.
