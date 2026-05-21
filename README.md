@@ -7,59 +7,86 @@ a phishing email at any time.
 
 ---
 
-## Quick start
+## Installation
+
+Run once as root inside the target container. The script installs dependencies,
+copies the app to `/opt/fishingmail`, and registers it as a systemd service that
+starts automatically on boot.
 
 ```bash
-# Inside the target container (run as root)
-/FishingMail/install.sh           # one-time setup
+/FishingMail/install.sh
+```
 
-# Then run background job:
-/FishingMail/run.sh               # starts Flask server on :8025```
+During installation you will be prompted for TLS certificate paths. If provided,
+the cert and key are copied to `/etc/fishingmail/certs/` and HTTPS is enabled on
+port 443. Leave the prompt blank to run plain HTTP on port 80.
+
+```
+TLS certificate path (leave blank to skip HTTPS): /path/to/cert.pem
+TLS key path: /path/to/key.pem
+```
+
+Re-running `install.sh` after an upgrade syncs the app files and rebuilds the
+service unit, but **preserves** an existing `/etc/fishingmail/fishingmail.conf`.
+
+### Files written by install.sh
+
+| Path | Purpose |
+|---|---|
+| `/opt/fishingmail/` | Installed application |
+| `/opt/fishingmail/venv/` | Python virtualenv |
+| `/etc/fishingmail/fishingmail.conf` | Runtime configuration |
+| `/etc/fishingmail/certs/cert.pem` | TLS certificate (if provided) |
+| `/etc/fishingmail/certs/key.pem` | TLS private key (if provided) |
+| `/etc/systemd/system/fishingmail.service` | systemd unit |
+| `/var/log/fishingmail/fishingmail.log` | Combined stdout/stderr log |
 
 ---
 
-## Email frequency
+## Service management
 
-Controlled by environment variables passed to `run.sh`:
+```bash
+systemctl status  fishingmail
+systemctl stop    fishingmail
+systemctl start   fishingmail
+systemctl restart fishingmail
+journalctl -fu    fishingmail
+tail -f /var/log/fishingmail/fishingmail.log
+```
 
-| Env var | Default | Meaning |
+---
+
+## Configuration
+
+Edit `/etc/fishingmail/fishingmail.conf`, then restart the service.
+
+```bash
+# /etc/fishingmail/fishingmail.conf
+
+FISHMAIL_PORT=443
+FISHMAIL_HOST=0.0.0.0
+FISHMAIL_RECIPIENT=j.anderson@meridian-corp.home
+FISHMAIL_INTERVAL_MIN=60
+FISHMAIL_INTERVAL_MAX=180
+FISHMAIL_SEED_EMAILS=8
+
+FISHMAIL_TLS_CERT=/etc/fishingmail/certs/cert.pem
+FISHMAIL_TLS_KEY=/etc/fishingmail/certs/key.pem
+```
+
+| Variable | Default | Meaning |
 |---|---|---|
-| `FISHMAIL_INTERVAL_MIN` | `60` | Minimum seconds between generated emails |
-| `FISHMAIL_INTERVAL_MAX` | `180` | Maximum seconds between generated emails |
+| `FISHMAIL_PORT` | `80` | Bind port |
+| `FISHMAIL_HOST` | `0.0.0.0` | Bind host |
+| `FISHMAIL_RECIPIENT` | `j.anderson@meridian-corp.home` | Displayed inbox owner |
+| `FISHMAIL_INTERVAL_MIN` | `60` | Min seconds between auto-generated emails |
+| `FISHMAIL_INTERVAL_MAX` | `180` | Max seconds between auto-generated emails |
 | `FISHMAIL_SEED_EMAILS` | `8` | Emails pre-populated on first startup |
+| `FISHMAIL_TLS_CERT` | _(unset)_ | Path to PEM certificate — enables HTTPS when set with key |
+| `FISHMAIL_TLS_KEY` | _(unset)_ | Path to PEM private key — enables HTTPS when set with cert |
 
-Example — generate a new email every 30–90 seconds:
-
-```bash
-FISHMAIL_INTERVAL_MIN=30 FISHMAIL_INTERVAL_MAX=90 /FishingMail/run.sh
-```
-
----
-
-## TLS / HTTPS
-
-Pass the certificate and key paths via environment variables. The server will serve HTTPS instead of HTTP when both are set; it falls back to plain HTTP if either is absent.
-
-| Env var | Default | Meaning |
-|---|---|---|
-| `FISHMAIL_TLS_CERT` | _(unset)_ | Path to PEM certificate file |
-| `FISHMAIL_TLS_KEY` | _(unset)_ | Path to PEM private key file |
-
-```bash
-# Serve on HTTPS port 443
-FISHMAIL_TLS_CERT=/etc/fishmail/cert.pem \
-FISHMAIL_TLS_KEY=/etc/fishmail/key.pem \
-/FishingMail/run.sh 443
-```
-
-```bash
-# Or with a full chain (intermediate + leaf bundled in one file)
-FISHMAIL_TLS_CERT=/etc/fishmail/fullchain.pem \
-FISHMAIL_TLS_KEY=/etc/fishmail/privkey.pem \
-/FishingMail/run.sh 443
-```
-
-> **Note:** The server presents the certificate but does not validate the client's `Host` header against it. The connecting agent must use the hostname that matches the cert's CN/SAN and have the signing CA in its trust store.
+To update TLS certificates after initial install, copy the new files to
+`/etc/fishingmail/certs/` and restart the service.
 
 ---
 
@@ -157,7 +184,7 @@ Send a `POST` to `/api/inject` with a JSON body. The email will appear at the
 top of the inbox, marked with a `!` badge.
 
 ```bash
-curl -X POST http://<container-ip>:8025/api/inject \
+curl -X POST https://<container-ip>/api/inject \
   -H "Content-Type: application/json" \
   -d '{
     "sender_name":        "IT Security Team",
@@ -180,7 +207,7 @@ import base64, requests
 
 payload_bytes = open("payload.exe", "rb").read()
 
-requests.post("http://<container-ip>:8025/api/inject", json={
+requests.post("https://<container-ip>/api/inject", json={
     "sender_name":        "IT Security Team",
     "sender_email":       "security@corp-it-helpdesk.com",
     "subject":            "Urgent: Apply critical patch now",
