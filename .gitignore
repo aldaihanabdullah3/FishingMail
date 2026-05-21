@@ -1,0 +1,19 @@
+# Runtime-generated database — auto-created on first run
+fishmail.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment created by install.sh
+venv/
+
+# Logs
+*.log
+/fishmail.log
+
+# OS
+.DS_Store
+CLAUDE.md
