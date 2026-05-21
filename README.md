@@ -14,16 +14,11 @@ copies the app to `/opt/fishingmail`, and registers it as a systemd service that
 starts automatically on boot.
 
 ```bash
+# HTTP on port 80 (default)
 /FishingMail/install.sh
-```
 
-During installation you will be prompted for TLS certificate paths. If provided,
-the cert and key are copied to `/etc/fishingmail/certs/` and HTTPS is enabled on
-port 443. Leave the prompt blank to run plain HTTP on port 80.
-
-```
-TLS certificate path (leave blank to skip HTTPS): /path/to/cert.pem
-TLS key path: /path/to/key.pem
+# HTTPS on port 443 — cert and key are moved to /etc/fishingmail/certs/
+/FishingMail/install.sh --cert /path/to/cert.pem --key /path/to/key.pem
 ```
 
 Re-running `install.sh` after an upgrade syncs the app files and rebuilds the

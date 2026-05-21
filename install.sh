@@ -1,14 +1,30 @@
 #!/usr/bin/env bash
-# FishingMail/install.sh
+# FishingMail/install.sh [--cert CERT_PATH --key KEY_PATH]
+#
 # Copies app files to /opt/fishingmail, builds a venv there, and registers
 # FishingMail as a systemd service that starts automatically on boot.
 # Run once as root from any location.
+#
+# Options:
+#   --cert PATH   Path to PEM certificate file (enables HTTPS on port 443)
+#   --key  PATH   Path to PEM private key file (required with --cert)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/opt/fishingmail"
 SERVICE_FILE="/etc/systemd/system/fishingmail.service"
 ENV_FILE="/etc/fishingmail/fishingmail.conf"
+
+# ── Argument parsing ──────────────────────────────────────────────────────────
+TLS_CERT=""
+TLS_KEY=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --cert) TLS_CERT="$2"; shift 2 ;;
+        --key)  TLS_KEY="$2";  shift 2 ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
 
 [[ $EUID -eq 0 ]] || { echo "Run as root" >&2; exit 1; }
 
@@ -34,35 +50,24 @@ python3 -m venv "$INSTALL_DIR/venv"
 "$INSTALL_DIR/venv/bin/pip" install --quiet --upgrade pip
 "$INSTALL_DIR/venv/bin/pip" install --quiet -r "$INSTALL_DIR/requirements.txt"
 
-# ── TLS certificate prompt ───────────────────────────────────────────────────
-TLS_CERT=""
-TLS_KEY=""
+# ── TLS certificate handling ──────────────────────────────────────────────────
 FISHMAIL_PORT=80
-
-echo ""
-read -r -p "TLS certificate path (leave blank to skip HTTPS): " TLS_CERT
-if [[ -n "$TLS_CERT" ]]; then
-    read -r -p "TLS key path: " TLS_KEY
+if [[ -n "$TLS_CERT" || -n "$TLS_KEY" ]]; then
     if [[ ! -f "$TLS_CERT" ]]; then
-        echo "  warning : cert not found at '$TLS_CERT' — falling back to HTTP on port 80" >&2
-        TLS_CERT=""
-        TLS_KEY=""
-    elif [[ ! -f "$TLS_KEY" ]]; then
-        echo "  warning : key not found at '$TLS_KEY' — falling back to HTTP on port 80" >&2
-        TLS_CERT=""
-        TLS_KEY=""
-    else
-        mkdir -p /etc/fishingmail/certs
-        mv "$TLS_CERT" /etc/fishingmail/certs/cert.pem
-        mv "$TLS_KEY"  /etc/fishingmail/certs/key.pem
-        chmod 600 /etc/fishingmail/certs/key.pem
-        TLS_CERT=/etc/fishingmail/certs/cert.pem
-        TLS_KEY=/etc/fishingmail/certs/key.pem
-        FISHMAIL_PORT=443
-        echo "  certs   : copied to /etc/fishingmail/certs/"
+        echo "error: cert not found at '$TLS_CERT'" >&2; exit 1
     fi
+    if [[ ! -f "$TLS_KEY" ]]; then
+        echo "error: key not found at '$TLS_KEY'" >&2; exit 1
+    fi
+    mkdir -p /etc/fishingmail/certs
+    mv "$TLS_CERT" /etc/fishingmail/certs/cert.pem
+    mv "$TLS_KEY"  /etc/fishingmail/certs/key.pem
+    chmod 600 /etc/fishingmail/certs/key.pem
+    TLS_CERT=/etc/fishingmail/certs/cert.pem
+    TLS_KEY=/etc/fishingmail/certs/key.pem
+    FISHMAIL_PORT=443
+    echo "  certs   : moved to /etc/fishingmail/certs/"
 fi
-echo ""
 
 # ── Runtime configuration — edit this file to tune the server ────────────────
 # Only write defaults if the file doesn't already exist, so re-running
