@@ -68,6 +68,13 @@
         <button class="toolbar-btn" id="refresh-btn" title="Refresh">
           <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
         </button>
+        <button class="toolbar-btn filter-btn" id="unread-filter-btn"
+                title="Show unread only"
+                data-active="0"
+                aria-pressed="false">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <span class="filter-btn-label">Unread</span>
+        </button>
         <span id="list-label">Inbox</span>
         <span id="email-count-label" style="margin-left:auto;color:#5f6368;font-size:13px;">
           1–{{ emails|length }} of {{ emails|length }}
@@ -129,8 +136,6 @@
           <div id="email-time">{{ selected['ts'] | datefmt_long }}</div>
         </div>
 
-        <div id="detail-body">{{ selected['body'] }}</div>
-
         {% if selected['has_attachment'] %}
         <div id="attachment-area">
           <div id="attachment-card"
@@ -149,6 +154,8 @@
           </div>
         </div>
         {% endif %}
+
+        <div id="detail-body">{{ selected['body'] }}</div>
 
         <!-- Reply area -->
         <div id="reply-area">

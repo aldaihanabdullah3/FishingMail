@@ -124,14 +124,42 @@
 
   /* ── Client-side search / filter ─────────────────────────────────────── */
 
-  const searchInput = qs("#search-input");
+  const searchInput     = qs("#search-input");
+  const unreadFilterBtn = qs("#unread-filter-btn");
+
+  function _applyFilters() {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
+    const unreadOnly = unreadFilterBtn &&
+                       unreadFilterBtn.dataset.active === "1";
+    let shown = 0;
+    qsa(".email-row", inbox).forEach(function (row) {
+      const text = row.textContent.toLowerCase();
+      const matchesQuery   = !q || text.includes(q);
+      const matchesUnread  = !unreadOnly || row.dataset.unread === "1";
+      const visible = matchesQuery && matchesUnread;
+      row.style.display = visible ? "" : "none";
+      if (visible) shown++;
+    });
+    const countLabel = qs("#email-count-label");
+    if (countLabel) {
+      const total = qsa(".email-row", inbox).length;
+      countLabel.textContent = shown === total
+        ? "1–" + total + " of " + total
+        : shown + " of " + total;
+    }
+  }
+
   if (searchInput && inbox) {
-    searchInput.addEventListener("input", function () {
-      const q = searchInput.value.toLowerCase().trim();
-      qsa(".email-row", inbox).forEach(function (row) {
-        const text = row.textContent.toLowerCase();
-        row.style.display = (!q || text.includes(q)) ? "" : "none";
-      });
+    searchInput.addEventListener("input", _applyFilters);
+  }
+
+  if (unreadFilterBtn && inbox) {
+    unreadFilterBtn.addEventListener("click", function () {
+      const active = unreadFilterBtn.dataset.active === "1";
+      unreadFilterBtn.dataset.active = active ? "0" : "1";
+      unreadFilterBtn.setAttribute("aria-pressed", active ? "false" : "true");
+      unreadFilterBtn.classList.toggle("active", !active);
+      _applyFilters();
     });
   }
 

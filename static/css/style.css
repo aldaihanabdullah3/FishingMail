@@ -130,6 +130,21 @@ body {
 }
 .toolbar-btn:hover { background:#f1f3f4; }
 .toolbar-btn svg { width:18px; height:18px; }
+.filter-btn {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 10px; border-radius:16px;
+  font-size:12px; color:#444;
+  border:1px solid transparent;
+}
+.filter-btn svg { width:14px; height:14px; }
+.filter-btn.active {
+  background:#d3e3fd;
+  color:#041e49;
+  border-color:#a8c7fa;
+  font-weight:600;
+}
+.filter-btn.active svg { stroke:#041e49; }
+.filter-btn-label { font-size:12px; }
 #list-label { font-size:14px; color:#444; font-weight:500; margin-left:4px; }
 
 #inbox-list {
@@ -225,7 +240,7 @@ body {
 }
 
 /* Attachment card */
-#attachment-area { margin:24px 0; }
+#attachment-area { margin:0 0 16px; }
 #attachment-card {
   display:inline-flex; align-items:center; gap:12px;
   padding:12px 16px;
