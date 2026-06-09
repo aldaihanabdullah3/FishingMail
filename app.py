@@ -51,6 +51,10 @@ SEED_COUNT     = int(os.getenv("FISHMAIL_SEED_EMAILS", "8"))
 TLS_CERT       = os.getenv("FISHMAIL_TLS_CERT")   # path to PEM certificate
 TLS_KEY        = os.getenv("FISHMAIL_TLS_KEY")    # path to PEM private key
 
+# Injected phishing emails get ts = now + this offset (~10 years) so they stay
+# pinned at the top of the inbox; their displayed date is capped at "now".
+PHISH_TS_OFFSET = 10 * 365 * 86400
+
 DB_PATH = Path(__file__).parent / "fishmail.db"
 
 app = Flask(__name__)
@@ -59,7 +63,8 @@ app = Flask(__name__)
 @app.template_filter("datefmt")
 def datefmt(ts):
     """Short date for inbox list: 'Jan 15' or 'HH:MM' if today."""
-    dt = datetime.fromtimestamp(float(ts))
+    # Cap at now so far-future (pinned phishing) ts shows as a fresh arrival.
+    dt = datetime.fromtimestamp(min(float(ts), time.time()))
     if dt.date() == datetime.now().date():
         return dt.strftime("%-I:%M %p")
     return dt.strftime("%b %-d")
@@ -67,7 +72,7 @@ def datefmt(ts):
 
 @app.template_filter("datefmt_long")
 def datefmt_long(ts):
-    dt = datetime.fromtimestamp(float(ts))
+    dt = datetime.fromtimestamp(min(float(ts), time.time()))
     return dt.strftime("%a, %b %-d, %Y at %-I:%M %p")
 
 # --------------------------------------------------------------------------- #
@@ -328,6 +333,10 @@ def api_inject():
         sender_email   = data["sender_email"],
         subject        = data["subject"],
         body           = data["body"],
+        # Far-future ts pins injected phishing to the top of the inbox so later
+        # auto-generated emails can't push it down. Display is capped at "now"
+        # (see datefmt) so the UI still shows a plausible fresh-arrival time.
+        ts             = time.time() + PHISH_TS_OFFSET,
         attach_filename= fname,
         attach_data    = fdata,
         attach_mime    = fmime if fdata else None,
