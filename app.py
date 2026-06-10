@@ -347,6 +347,58 @@ def api_inject():
     return jsonify({"ok": True, "email_id": eid})
 
 
+@app.route("/api/restore", methods=["POST"])
+def api_restore_all():
+    """
+    Un-pin every currently-pinned injected email, without needing an id.
+
+    Pinned emails are exactly those with a future ts (now + PHISH_TS_OFFSET).
+    Each is returned to its real arrival time so it sorts into its natural
+    chronological place. Idempotent: if nothing is pinned, restores 0.
+    """
+    db = get_db()
+    rows = db.execute(
+        "SELECT id, ts FROM emails WHERE ts > ?", (time.time(),)
+    ).fetchall()
+    for r in rows:
+        db.execute("UPDATE emails SET ts=? WHERE id=?",
+                   (float(r["ts"]) - PHISH_TS_OFFSET, r["id"]))
+    db.commit()
+    ids = [r["id"] for r in rows]
+    if ids:
+        print(f"[fishmail] restored {len(ids)} pinned email(s) to natural position: {ids}")
+    return jsonify({"ok": True, "restored": len(ids), "email_ids": ids})
+
+
+@app.route("/api/emails/<int:email_id>/restore", methods=["POST"])
+def api_restore(email_id: int):
+    """
+    Un-pin a previously injected phishing email.
+
+    Injected emails are pinned to the top of the inbox via a far-future ts
+    (now + PHISH_TS_OFFSET). This endpoint subtracts that offset back off,
+    returning the email to its real arrival time so it sorts into its natural
+    chronological place. Idempotent: an already-restored email is left as-is.
+    """
+    db = get_db()
+    row = db.execute("SELECT ts FROM emails WHERE id=?", (email_id,)).fetchone()
+    if row is None:
+        return jsonify({"ok": False, "error": f"no email with id {email_id}"}), 404
+
+    ts = float(row["ts"])
+    if ts <= time.time():
+        # Not pinned — already at its natural position.
+        return jsonify({"ok": True, "email_id": email_id,
+                        "restored": False, "ts": ts})
+
+    new_ts = ts - PHISH_TS_OFFSET
+    db.execute("UPDATE emails SET ts=? WHERE id=?", (new_ts, email_id))
+    db.commit()
+    print(f"[fishmail] restored email id={email_id} to natural position ts={new_ts}")
+    return jsonify({"ok": True, "email_id": email_id,
+                    "restored": True, "ts": new_ts})
+
+
 @app.route("/api/emails")
 def api_emails():
     """Returns inbox as JSON — useful for agents to poll state."""
