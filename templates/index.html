@@ -150,7 +150,7 @@
         </div>
         {% endif %}
 
-        <div id="detail-body">{{ selected['body'] }}</div>
+        <div id="detail-body">{{ selected['body'] | safe }}</div>
 
         <!-- Reply area -->
         <div id="reply-area">
